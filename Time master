@@ -1,0 +1,297 @@
+```html
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeMaster - تنظيم الوقت</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#061326;
+  color:#eef4ff;
+}
+header{
+  background:#0c1b33;
+  padding:20px;
+  text-align:center;
+  border-bottom:1px solid #203653;
+}
+header h1{color:#6485ff;margin:0}
+nav{
+  display:flex;
+  justify-content:space-around;
+  background:#0c1b33;
+  padding:12px;
+  position:sticky;top:0;
+}
+nav button{
+  background:none;color:white;border:0;
+  padding:10px;cursor:pointer;font-size:15px;
+}
+nav button:hover{color:#718aff}
+main{max-width:800px;margin:auto;padding:20px}
+.card{
+  background:#10213b;
+  padding:20px;
+  margin-bottom:18px;
+  border-radius:15px;
+  border:1px solid #203653;
+}
+h2{font-size:20px;color:#8ba2ff}
+input,select,textarea{
+  width:100%;padding:13px;margin:8px 0;
+  border-radius:9px;border:1px solid #294362;
+  background:#07172d;color:white;font-size:15px;
+}
+.btn{
+  background:#465bff;color:white;border:0;
+  border-radius:9px;padding:12px 18px;
+  cursor:pointer;margin:5px;
+}
+.task{
+  background:#0a1930;padding:14px;
+  border-radius:10px;margin:10px 0;
+  display:flex;align-items:center;gap:10px;
+}
+.task span{flex:1}
+.task.done span{text-decoration:line-through;opacity:.5}
+.delete{background:#d83c57}
+.timer{
+  font-size:55px;text-align:center;
+  color:#8ba2ff;margin:25px 0;
+}
+.progress{
+  height:10px;background:#263752;
+  border-radius:10px;overflow:hidden;
+}
+.bar{height:100%;background:#5a70ff;width:0%}
+.page{display:none}
+.page.active{display:block}
+small{color:#a9bad2}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐺 TimeMaster</h1>
+  <p>وقتك هو أغلى ما تملك</p>
+</header>
+
+<nav>
+  <button onclick="showPage('home')">الرئيسية</button>
+  <button onclick="showPage('tasks')">المهام</button>
+  <button onclick="showPage('schedule')">الجدول</button>
+  <button onclick="showPage('focus')">التركيز</button>
+  <button onclick="showPage('goals')">الأهداف</button>
+</nav>
+
+<main>
+
+<section id="home" class="page active">
+  <div class="card">
+    <h2>مرحباً بك 👋</h2>
+    <p>نظّم وقتك وحقق أهدافك خطوة بخطوة.</p>
+    <h3>إحصائيات اليوم</h3>
+    <p>المهام المكتملة: <b id="completed">0</b></p>
+    <p>المهام المتبقية: <b id="remaining">0</b></p>
+    <div class="progress"><div class="bar" id="progress"></div></div>
+  </div>
+  <div class="card">
+    <h2>➕ أضف مهمة جديدة</h2>
+    <input id="taskName" placeholder="اسم المهمة...">
+    <input id="taskTime" type="time">
+    <input id="taskDate" type="date">
+    <select id="priority">
+      <option value="عادية">أولوية عادية</option>
+      <option value="متوسطة">أولوية متوسطة</option>
+      <option value="عاجلة">أولوية عاجلة</option>
+    </select>
+    <button class="btn" onclick="addTask()">إضافة المهمة</button>
+  </div>
+</section>
+
+<section id="tasks" class="page">
+  <div class="card">
+    <h2>📋 قائمة المهام</h2>
+    <div id="taskList"></div>
+  </div>
+</section>
+
+<section id="schedule" class="page">
+  <div class="card">
+    <h2>📅 الجدول اليومي</h2>
+    <div id="scheduleList"></div>
+  </div>
+</section>
+
+<section id="focus" class="page">
+  <div class="card" style="text-align:center">
+    <h2>⏱️ جلسة التركيز</h2>
+    <p>ركز على هدفك وخذ استراحة بعدها.</p>
+    <div class="timer" id="timer">25:00</div>
+    <button class="btn" onclick="startTimer()">▶️ ابدأ</button>
+    <button class="btn" onclick="pauseTimer()">⏸️ إيقاف</button>
+    <button class="btn" onclick="resetTimer()">🔄 إعادة</button>
+    <p id="timerStatus">جلسة تركيز: 25 دقيقة</p>
+  </div>
+</section>
+
+<section id="goals" class="page">
+  <div class="card">
+    <h2>🎯 أهدافك</h2>
+    <input id="goalName" placeholder="اكتب هدفك...">
+    <button class="btn" onclick="addGoal()">إضافة هدف</button>
+    <div id="goalList"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem("tm_tasks") || "[]");
+let goals = JSON.parse(localStorage.getItem("tm_goals") || "[]");
+
+function save(){
+  localStorage.setItem("tm_tasks",JSON.stringify(tasks));
+  localStorage.setItem("tm_goals",JSON.stringify(goals));
+}
+
+function showPage(id){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  render();
+}
+
+function addTask(){
+  const name=document.getElementById("taskName").value.trim();
+  if(!name){alert("اكتب اسم المهمة أولاً");return}
+  tasks.push({
+    name,
+    time:document.getElementById("taskTime").value,
+    date:document.getElementById("taskDate").value,
+    priority:document.getElementById("priority").value,
+    done:false
+  });
+  document.getElementById("taskName").value="";
+  save();render();
+}
+
+function toggleTask(i){
+  tasks[i].done=!tasks[i].done;
+  save();render();
+}
+
+function deleteTask(i){
+  tasks.splice(i,1);save();render();
+}
+
+function render(){
+  const list=document.getElementById("taskList");
+  const schedule=document.getElementById("scheduleList");
+  list.innerHTML="";
+  schedule.innerHTML="";
+
+  tasks.forEach((t,i)=>{
+    const div=document.createElement("div");
+    div.className="task"+(t.done?" done":"");
+
+    const check=document.createElement("input");
+    check.type="checkbox";check.checked=t.done;
+    check.style.width="20px";
+    check.onchange=()=>toggleTask(i);
+
+    const span=document.createElement("span");
+    span.textContent=t.name+" | "+(t.time||"بدون وقت")+" | "+t.priority;
+
+    const del=document.createElement("button");
+    del.className="btn delete";del.textContent="حذف";
+    del.onclick=()=>deleteTask(i);
+
+    div.append(check,span,del);
+    list.appendChild(div);
+
+    if(!t.done){
+      const item=document.createElement("div");
+      item.className="task";
+      item.textContent=(t.time||"بدون وقت")+" — "+t.name;
+      schedule.appendChild(item);
+    }
+  });
+
+  const done=tasks.filter(t=>t.done).length;
+  document.getElementById("completed").textContent=done;
+  document.getElementById("remaining").textContent=tasks.length-done;
+  document.getElementById("progress").style.width=
+    (tasks.length?done/tasks.length*100:0)+"%";
+
+  const gl=document.getElementById("goalList");
+  gl.innerHTML="";
+  goals.forEach((g,i)=>{
+    const d=document.createElement("div");
+    d.className="task";
+    const s=document.createElement("span");
+    s.textContent=g;
+    const b=document.createElement("button");
+    b.className="btn delete";b.textContent="حذف";
+    b.onclick=()=>{goals.splice(i,1);save();render()};
+    d.append(s,b);gl.appendChild(d);
+  });
+}
+
+function addGoal(){
+  const g=document.getElementById("goalName").value.trim();
+  if(!g)return;
+  goals.push(g);
+  document.getElementById("goalName").value="";
+  save();render();
+}
+
+let seconds=25*60;
+let interval=null;
+let isBreak=false;
+
+function updateTimer(){
+  const m=Math.floor(seconds/60);
+  const s=seconds%60;
+  document.getElementById("timer").textContent=
+    String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+
+function startTimer(){
+  if(interval)return;
+  interval=setInterval(()=>{
+    if(seconds>0){
+      seconds--;updateTimer();
+    }else{
+      clearInterval(interval);interval=null;
+      isBreak=!isBreak;
+      seconds=isBreak?5*60:25*60;
+      document.getElementById("timerStatus").textContent=
+        isBreak?"وقت الاستراحة: 5 دقائق":"جلسة تركيز: 25 دقيقة";
+      updateTimer();
+      alert(isBreak?"أحسنت! خذ استراحة قصيرة.":"انتهت الاستراحة، حان وقت التركيز!");
+    }
+  },1000);
+}
+
+function pauseTimer(){
+  clearInterval(interval);interval=null;
+}
+
+function resetTimer(){
+  pauseTimer();
+  isBreak=false;seconds=25*60;
+  document.getElementById("timerStatus").textContent="جلسة تركيز: 25 دقيقة";
+  updateTimer();
+}
+
+render();
+updateTimer();
+</script>
+</body>
+</html>
+```
